@@ -16,7 +16,8 @@
     "firebase": "^10.12.4",
     "mongoose": "^8.5.2",
     "morgan": "^1.10.0",
-    "sucrase": "^3.35.0"
+    "sucrase": "^3.35.0",
+    "ws": "^8.18.0"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",

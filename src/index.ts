@@ -25,7 +25,7 @@ app.get('/', (_, res) => {
 
 
 
-
+ 
 
 
 sub.subscribe('newsletter', ['pubsub'], async (message: string) => {

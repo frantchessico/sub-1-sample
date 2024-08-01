@@ -5,7 +5,7 @@ import morgan from 'morgan';
 import { createNewsletter } from './service/newsletter.service';
 import { connection } from './configs/mongodb';
 import { sub } from './configs/subscriber';
-import { Server } from 'ws';
+import { Server as WebSocketServer, WebSocket } from 'ws';
 
 connection();
 
@@ -13,10 +13,8 @@ const app = express();
 app.use(express.json());
 app.use(morgan('dev'));
 
-const port = process.env.PORT || 3300;
-
 // WebSocket server setup
-const wss = new Server({ noServer: true });
+const wss = new WebSocketServer({ noServer: true });
 const clients: Set<WebSocket> = new Set();
 
 wss.on('connection', (ws: WebSocket) => {
@@ -34,14 +32,33 @@ wss.on('connection', (ws: WebSocket) => {
 app.get('/', (_, res) => {
   res.send(`
     <html>
+      <head>
+        <title>Subscriber 1 Sample</title>
+        <style>
+          #messages {
+            border: 1px solid #ccc;
+            padding: 10px;
+            height: 300px;
+            overflow-y: scroll;
+          }
+          .message {
+            padding: 5px;
+            border-bottom: 1px solid #eee;
+          }
+        </style>
+      </head>
       <body>
         <h1>Welcome to Subscriber 1 Sample</h1>
+        <div id="messages"></div>
         <script>
-          const ws = new WebSocket('ws://localhost:${port}/ws');
+          const ws = new WebSocket('ws://' + window.location.host + '/ws');
           ws.onmessage = function(event) {
             const message = JSON.parse(event.data);
-            console.log('Received message:', message);
-            // Display the message or update the UI
+            const messageElement = document.createElement('div');
+            messageElement.className = 'message';
+            messageElement.textContent = 'Received message: ' + JSON.stringify(message);
+            document.getElementById('messages').appendChild(messageElement);
+            document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
           };
         </script>
       </body>
@@ -65,12 +82,18 @@ sub.subscribe('newsletter', ['pubsub'], async (message: string) => {
 });
 
 // Integrate WebSocket server with Express
-app.listen(port, () => {
+const port = process.env.PORT || 3000;
+
+const server = app.listen(port, () => {
   console.log(`Server on http://localhost:${port}`);
-  const server = app.listen(port);
-  server.on('upgrade', (request, socket, head) => {
-    wss.handleUpgrade(request, socket, head, (ws: any) => {
+});
+
+server.on('upgrade', (request, socket, head) => {
+  if (request.url === '/ws') {
+    wss.handleUpgrade(request, socket, head, (ws: WebSocket) => {
       wss.emit('connection', ws, request);
     });
-  });
+  } else {
+    socket.destroy();
+  }
 });

@@ -6,9 +6,17 @@ import { createNewsletter } from './service/newsletter.service';
 import { connection } from './configs/mongodb';
 import { sub } from './configs/subscriber';
 import { Server as WebSocketServer, WebSocket } from 'ws';
+import https from 'https';
+import fs from 'fs';
 
-connection();
+// Load SSL certificates
+const privateKey = fs.readFileSync('/path/to/your/private-key.pem', 'utf8');
+const certificate = fs.readFileSync('/path/to/your/certificate.pem', 'utf8');
+const ca = fs.readFileSync('/path/to/your/ca.pem', 'utf8');
 
+const credentials = { key: privateKey, cert: certificate, ca: ca };
+
+// Initialize Express app
 const app = express();
 app.use(express.json());
 app.use(morgan('dev'));
@@ -51,7 +59,8 @@ app.get('/', (_, res) => {
         <h1>Welcome to Subscriber 1 Sample</h1>
         <div id="messages"></div>
         <script>
-          const ws = new WebSocket('ws://' + window.location.host + '/ws');
+          const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+          const ws = new WebSocket(protocol + '//' + window.location.host + '/ws');
           ws.onmessage = function(event) {
             const message = JSON.parse(event.data);
             const messageElement = document.createElement('div');
@@ -84,8 +93,10 @@ sub.subscribe('newsletter', ['pubsub'], async (message: string) => {
 // Integrate WebSocket server with Express
 const port = process.env.PORT || 3000;
 
-const server = app.listen(port, () => {
-  console.log(`Server on http://localhost:${port}`);
+const server = https.createServer(credentials, app);
+
+server.listen(port, () => {
+  console.log(`Server on https://localhost:${port}`);
 });
 
 server.on('upgrade', (request, socket, head) => {
